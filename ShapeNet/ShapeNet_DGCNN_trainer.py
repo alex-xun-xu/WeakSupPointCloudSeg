@@ -13,6 +13,7 @@ sys.path.append(os.path.expanduser('../Util'))
 import Tool
 import DGCNN_ShapeNet as network
 import SmoothConstraint
+import ProbLabelPropagation as PLP
 
 class ShapeNet_Trainer():
 
@@ -21,7 +22,7 @@ class ShapeNet_Trainer():
         self.bestValCorrect = 0.
 
 
-    def SetLearningRate(self,LearningRate,BatchSize):
+    def SetLearningRate(self,LearningRate=1e-3,BatchSize=12):
 
         self.BASE_LEARNING_RATE = LearningRate
         self.BATCH_SIZE = BatchSize
@@ -52,7 +53,7 @@ class ShapeNet_Trainer():
         bn_decay = tf.minimum(self.BN_DECAY_CLIP, 1 - bn_momentum)
         return bn_decay
 
-    def defineNetwork(self, batch_size, point_num=2048, loss='Full', rampup=51):
+    def defineNetwork(self, batch_size, point_num=2048, style='Full', rampup=51):
         '''
         define DGCNN network for incomplete labels as supervision
         Args:
@@ -87,9 +88,11 @@ class ShapeNet_Trainer():
 
         ## Final Loss
         self.epoch = tf.Variable(0, trainable=False)
-        if loss == 'Plain':
+        if style == 'Plain':
+            # plain style training - only the labeled points are used for supervision
             self.loss = self.loss_seg
-        elif loss == 'Full':
+        elif style == 'Full':
+            # full style training - all weakly supervised losses are used for training
             self.WeakSupLoss()
             self.loss = self.loss_seg + \
                         tf.cast(tf.greater_equal(self.epoch,rampup),dtype=tf.float32)*(self.loss_siamese + self.loss_inexact + self.loss_smooth)
@@ -105,6 +108,13 @@ class ShapeNet_Trainer():
         self.sess.run(tf.global_variables_initializer())
 
         return True
+
+    def defLabelPropSolver(self,alpha=1e0,beta=1e0,K=10):
+        ##### Define Label Propagation Solver
+        LPSolver = PLP.LabelPropagation_Baseline_TF(alpha=1e0, beta=1e0, K=10)
+        self.TFComp = {}
+        self.TFComp['Lmat'] = Tool.TF_Computation.LaplacianMatSym_XYZRGB_DirectComp()
+
 
     def TrainOneEpoch(self, Loader, file_idx_list,data_idx_list,pts_idx_list=None):
         '''
@@ -257,7 +267,7 @@ class ShapeNet_Trainer():
 
         ### Evaluation on validation set function
 
-    def Test(self, Loader, Eval):
+    def Test(self, Loader, Eval, style='Full'):
         batch_cnt = 1
         samp_cnt = 0
         data_cnt = 0
@@ -339,6 +349,8 @@ class ShapeNet_Trainer():
             batch_cnt += 1
 
         return avg_loss, avg_acc, perdata_miou, pershape_miou
+
+
 
     ### Saving Checkpoint function
     def SaveCheckPoint(self, save_filepath, best_filename, eval_avg_correct_rate):

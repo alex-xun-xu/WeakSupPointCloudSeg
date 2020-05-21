@@ -1,0 +1,2 @@
+# Train Full Model
+python train_ShapeNet.py -gpu 0 -m 0.1 -sty Full -er 1 -bs 32

@@ -28,11 +28,10 @@ parser.add_argument('--LearningRate',type=float,help='Learning Rate',
                     default=1e-3)
 parser.add_argument('--Epoch','-ep',type=int,help='Number of epochs to train [default: 101]',default=101)
 parser.add_argument('--Rampup','-rp',type=int,help='Number of epochs to rampup the weakly supervised losses [default: 51]',default=51)
-parser.add_argument('--gamma',type=float,help='L2 regularization coefficient',default=0.1)
-parser.add_argument('--batchsize',type=int,help='Training batchsize [default: 1]',default=6)
+parser.add_argument('--batchsize','-bs',type=int,help='Training batchsize [default: 1]',default=6)
 parser.add_argument('--m','-m',type=float,help='the ratio/percentage of points selected to be labelled (0.01=1%, '
-                                               '0.05=5%, 0.1=10%, 1=100%)[default: 0.01]',default=0.01)
-parser.add_argument('--Loss','-loss',type=str,help='Losses used for training the network [default: Full]'
+                                               '0.05=5%, 0.1=10%, 1=100%)[default: 0.01]',default=0.1)
+parser.add_argument('--Style','-sty',type=str,help='Style for training the network [default: Full]'
                                                      ' [options: Plain, Full]',default='Full')
 parser.add_argument('--Network','-net',type=str,help='Network used for training the network [default: DGCNN]'
                                                      ' [options: DGCNN, PointNet++(not supported yet)]',default='DGCNN')
@@ -56,8 +55,8 @@ ShapeCatNum = Loader.NUM_CATEGORIES
 
 #### Export results Directories
 if args.ExpRslt:
-    time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # get current time
-    BASE_PATH = os.path.expanduser('./Results/ShapeNet/{}_l-{}_m-{}_{}'.format(args.Network,args.Loss,args.m,time))
+    dt = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # get current time
+    BASE_PATH = os.path.expanduser('./Results/ShapeNet/{}_sty-{}_m-{}_{}'.format(args.Network, args.Style, args.m, dt))
     SUMMARY_PATH = os.path.join(BASE_PATH,'Summary'.format(args.m))
     PRED_PATH = os.path.join(BASE_PATH,'Prediction'.format(args.m))
     CHECKPOINT_PATH = os.path.join(BASE_PATH,'Checkpoint'.format(args.m))
@@ -83,7 +82,7 @@ TrainOp = trainer.ShapeNet_Trainer()
 TrainOp.SetLearningRate(LearningRate=args.LearningRate,BatchSize=args.batchsize)
 
 ##### Define Network
-TrainOp.defineNetwork(batch_size=args.batchsize, point_num=2048, loss=args.Loss, rampup=args.Rampup)
+TrainOp.defineNetwork(batch_size=args.batchsize, point_num=2048, style=args.Style, rampup=args.Rampup)
 
 #### Load Sampled Point Index
 save_path = os.path.expanduser('./Dataset/ShapeNet/Preprocess/')
