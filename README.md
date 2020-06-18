@@ -9,6 +9,7 @@ We release tensorflow code for experiments on ShapeNet[1] and S3DIS[2] datasets.
 
 ### Citation
 Please cite the following work if you feel it is helpful.
+
 @Inproceedings{XuLee_CVPR20,
 title={Weakly Supervised Semantic Point Cloud Segmentation: Towards 10x Fewer Labels},
 author={Xu, Xun and Lee, Gim Hee},
@@ -20,12 +21,24 @@ year={2020},
 This code has been tested on Pyhon3.6, TensorFlow1.14, CUDA 10.0, cuDNN 7.0 and Ubuntu 18.04
 
 ### Usage
-You should first obtain the data for ShapeNet and/or S3DIS by running
+You should first download the data for ShapeNet and/or S3DIS by running:
+	'''
 	bash prepareDataset_ShapeNet.sh
+	'''
 
 You can then train the full model by running:
-	python train.py
+	'''python
+	python train_ShapeNet.py
+	'''
+
+For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g.2020-06-17_07-45-44, and then run:
+	'''python
+	python test_ShapeNet.py -dt year-month-day_hour-min-sec
+	''' 
+
 
 Reference:
+
 [1] Li Yi, Vladimir G Kim, Duygu Ceylan, I Shen, Mengyan Yan, Hao Su, Cewu Lu, Qixing Huang, Alla Sheffer, Leonidas Guibas, et al. A scalable active framework for region annotation in 3d shape collections. ACM Transactions on Graphics, 2016.
+
 [2] Iro Armeni, Ozan Sener, Amir R Zamir, Helen Jiang, Ioannis Brilakis, Martin Fischer, and Silvio Savarese. 3d semantic parsing of large-scale indoor spaces. In CVPR, 2016.

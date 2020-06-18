@@ -35,9 +35,11 @@ parser.add_argument('--GPU','-gpu',type=int,help='GPU to use [default:0]',defaul
 parser.add_argument('--batchsize',type=int,help='Training batchsize [default: 1]',default=1)
 parser.add_argument('--m','-m',type=float,help='the ratio of points selected to be labelled [default: 0.01]',default=0.1)
 parser.add_argument('--Style','-style',type=str,help='Style for evaluating the network [default: Full]'
-                                                     ' [options: Plain, Full]',default='Plain')
+                                                     ' [options: Plain, Full]',default='Full')
 parser.add_argument('--Network','-net',type=str,help='Network used for training the network [default: DGCNN]'
                                                      ' [options: DGCNN, PointNet++(not supported yet)]',default='DGCNN')
+parser.add_argument('--Datetime','-dt',type=str,help='Exact datetime of model used for inference')
+
 args = parser.parse_args()
 
 ##### Set specified GPU to be active
@@ -49,7 +51,7 @@ Loader = IO.ShapeNetIO('./Dataset/ShapeNet',batchsize = args.batchsize)
 Loader.LoadTestFiles()
 
 ##### Evaluation Object
-Eval = Evaluation.ShapeNetEval()
+Eval = Evaluation.Eval()
 
 ## Number of categories
 PartNum = Loader.NUM_PART_CATS
@@ -57,7 +59,8 @@ output_dim = PartNum
 ShapeCatNum = Loader.NUM_CATEGORIES
 
 #### Save Directories
-dt='2020-05-20_13-16-50'
+#dt='2020-06-17_07-45-44'
+dt = args.Datetime
 BASE_PATH = os.path.expanduser('./Results/ShapeNet/{}_sty-{}_m-{}_{}'.format(args.Network, args.Style, args.m, dt))
 SUMMARY_PATH = os.path.join(BASE_PATH, 'Summary')
 PRED_PATH = os.path.join(BASE_PATH, 'Prediction')
@@ -83,7 +86,7 @@ TrainOp.RestoreCheckPoint(best_filepath)
 printout('\n\nstart Inference at {}\n'.format(time.ctime()))
 
 #### Evaluate
-avg_loss, avg_acc, perdata_miou, pershape_miou = TrainOp.Test(Loader,Eval)
+avg_loss, avg_acc, perdata_miou, pershape_miou = TrainOp.Test(Loader,Eval,args.Style)
 
 print('\nAvg Loss {:.4f}  Avg Acc {:.3f}%  Avg PerData IoU {:.3f}%  Avg PerCat IoU {:.3f}%'.format(
     avg_loss, 100 * avg_acc, 100 * np.mean(perdata_miou), 100 * np.mean(pershape_miou)), end='')
