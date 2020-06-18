@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 ###### Define Class for Evaluation
-class ShapeNetEval():
+class Eval():
 
     #### Data
     AP = 0
