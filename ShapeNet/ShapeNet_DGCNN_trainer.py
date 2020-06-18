@@ -21,7 +21,6 @@ class ShapeNet_Trainer():
 
         self.bestValCorrect = 0.
 
-
     def SetLearningRate(self,LearningRate=1e-3,BatchSize=12):
 
         self.BASE_LEARNING_RATE = LearningRate
@@ -59,10 +58,12 @@ class ShapeNet_Trainer():
         Args:
             batch_size: batchsize for training network
             point_num: number of points for each point cloud sample
-            loss: loss used for training weakly supervised segmentation network
+            style: model style, use full model or plain model
             rampup: rampup epoch for training
         Returns:
         '''
+
+        self.rampup = rampup
 
         ##### Define Network Inputs
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[batch_size, point_num, 3], name='InputPts')  # B*N*3
@@ -87,7 +88,7 @@ class ShapeNet_Trainer():
         self.loss_seg = tf.reduce_sum(self.Mask_ph * loss_seg) / tf.reduce_sum(self.Mask_ph)
 
         ## Final Loss
-        self.epoch = tf.Variable(0, trainable=False)
+        self.epoch = 0
         if style == 'Plain':
             # plain style training - only the labeled points are used for supervision
             self.loss = self.loss_seg
@@ -95,7 +96,7 @@ class ShapeNet_Trainer():
             # full style training - all weakly supervised losses are used for training
             self.WeakSupLoss()
             self.loss = self.loss_seg + \
-                        tf.cast(tf.greater_equal(self.epoch,rampup),dtype=tf.float32)*(self.loss_siamese + self.loss_inexact + self.loss_smooth)
+                        tf.cast(tf.greater_equal(self.epoch,self.rampup),dtype=tf.float32)*(self.loss_siamese + self.loss_inexact + self.loss_smooth)
         else:
             sys.exit('Loss {} is not defined!'.format(self.loss))
 
@@ -256,28 +257,35 @@ class ShapeNet_Trainer():
             Mask_bin_feed = np.stack(Mask_bin_feed)
 
             #### Randomly Augmentation for Siamese Training
-            data_feed = []
-            for data_i in data:
-                data_feed.append(data_i)
-                ## Randomly Jitter the Shape
-                spatialExtent = np.max(data_i, axis=0) - np.min(data_i, axis=0)
-                eps = 2e-3 * spatialExtent[np.newaxis, :]
-                jitter = eps * np.random.randn(data_i.shape[0], data_i.shape[1])
-                data_i = data_i + jitter
-                ## Randomly Mirror the Shape in the Y axis
-                mirror_opt = np.random.choice([0, 1])
-                if mirror_opt == 0:
-                    pass
-                elif mirror_opt == 1:
-                    data_i[:, 2] = -data_i[:, 2]
-                ## Randomly Rotate the Shape in XoY plane
-                # theta = 2*3.14592653*np.random.rand()   # from 0 to 2pi
-                # R = np.array([[np.cos(theta), 0, -np.sin(theta)], [0, 1, 0], [np.sin(theta), 0, np.cos(theta)]])
-                # data_i = np.einsum('jk,lk->lj', R, data_i)
-                ## Append Augmented Sample
-                data_feed.append(data_i)
+            if self.epoch >= self.rampup:
+                data_feed = []
+                for data_i in data:
+                    data_feed.append(data_i)
+                    ## Randomly Jitter the Shape
+                    spatialExtent = np.max(data_i, axis=0) - np.min(data_i, axis=0)
+                    eps = 2e-3 * spatialExtent[np.newaxis, :]
+                    jitter = eps * np.random.randn(data_i.shape[0], data_i.shape[1])
+                    data_i = data_i + jitter
+                    ## Randomly Mirror the Shape in the Y axis
+                    mirror_opt = np.random.choice([0, 1])
+                    if mirror_opt == 0:
+                        pass
+                    elif mirror_opt == 1:
+                        data_i[:, 2] = -data_i[:, 2]
+                    ## Randomly Rotate the Shape in XoY plane
+                    # theta = 2*3.14592653*np.random.rand()   # from 0 to 2pi
+                    # R = np.array([[np.cos(theta), 0, -np.sin(theta)], [0, 1, 0], [np.sin(theta), 0, np.cos(theta)]])
+                    # data_i = np.einsum('jk,lk->lj', R, data_i)
+                    ## Append Augmented Sample
+                    data_feed.append(data_i)
 
-            data_feed = np.stack(data_feed, axis=0)
+                data_feed = np.stack(data_feed, axis=0)
+            else:
+                data_feed = []
+                for data_i in data:
+                    data_feed.append(data_i)
+                    data_feed.append(data_i)
+                data_feed = np.stack(data_feed)
 
             #### Convert Shape Category Label to Onehot Encoding
             label_onehot = Tool.OnehotEncode(label[:, 0], Loader.NUM_CATEGORIES)

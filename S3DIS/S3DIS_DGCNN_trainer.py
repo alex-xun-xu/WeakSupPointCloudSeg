@@ -56,10 +56,16 @@ class S3DIS_Trainer():
     def defineNetwork(self, batch_size, num_points, style='Full', rampup=101):
         '''
         define DGCNN network for incomplete labels as supervision
-        :param output_dim:
-        :param LearningRate:
+        Args:
+            batch_size: batchsize for training network
+            num_points: number of points for each point cloud sample
+            style: model style, use full model or plain model
+            rampup: rampup epoch for training
         :return:
         '''
+
+        self.rampup = rampup
+
         ##### Define Network Inputs
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[batch_size, num_points, 9], name='InputPts')  # B*N*3
         self.Y_ph = tf.placeholder(dtype=tf.float32, shape=[batch_size, num_points, 13], name='PartGT')  # B*N*13
@@ -82,7 +88,7 @@ class S3DIS_Trainer():
         self.loss_seg = tf.reduce_sum(self.Mask_ph * loss_seg) / tf.reduce_sum(self.Mask_ph)
 
         ## Final Loss
-        self.epoch = tf.Variable(0, trainable=False)
+        self.epoch = 0
         if style == 'Plain':
             # plain style training - only the labeled points are used for supervision
             self.loss = self.loss_seg
@@ -90,7 +96,7 @@ class S3DIS_Trainer():
             # full style training - all weakly supervised losses are used for training
             self.WeakSupLoss()
             self.loss = self.loss_seg + \
-                        tf.cast(tf.greater_equal(self.epoch, rampup), dtype=tf.float32) * (
+                        tf.cast(tf.greater_equal(self.epoch, self.rampup), dtype=tf.float32) * (
                                     self.loss_siamese + self.loss_inexact + self.loss_smooth)
         else:
             sys.exit('Loss {} is not defined!'.format(self.loss))
@@ -205,6 +211,9 @@ class S3DIS_Trainer():
 
         Loader.ResetLoader_TrainSet()
 
+        # increase epoch counter by 1
+        self.epoch += 1
+
         # return avg_loss, perdata_miou, pershape_miou
         return avg_loss, avg_acc
 
@@ -248,45 +257,52 @@ class S3DIS_Trainer():
             Mask_bin_feed = np.stack(Mask_bin_feed)
 
             #### Create Siamese Input
-            data_feed = []
-            for data_i in data:
-                data_feed.append(data_i)
-                aug_choice = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7], 1)
-                if aug_choice == 1:
-                    data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
-                    data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
-                elif aug_choice == 2:
-                    data_i[:, 0] = -data_i[:, 0]
-                    data_i[:, 6] = -data_i[:, 6] + 1
-                elif aug_choice == 3:
-                    data_i[:, 1] = -data_i[:, 1]
-                    data_i[:, 7] = -data_i[:, 7] + 1
-                elif aug_choice == 4:
-                    data_i[:, 0] = -data_i[:, 0]
-                    data_i[:, 6] = -data_i[:, 6] + 1
-                    data_i[:, 1] = -data_i[:, 1]
-                    data_i[:, 7] = -data_i[:, 7] + 1
-                elif aug_choice == 5:
-                    data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
-                    data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
-                    data_i[:, 0] = -data_i[:, 0]
-                    data_i[:, 6] = -data_i[:, 6] + 1
-                elif aug_choice == 6:
-                    data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
-                    data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
-                    data_i[:, 1] = -data_i[:, 1]
-                    data_i[:, 7] = -data_i[:, 7] + 1
-                elif aug_choice == 7:
-                    data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
-                    data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
-                    data_i[:, 0] = -data_i[:, 0]
-                    data_i[:, 6] = -data_i[:, 6] + 1
-                    data_i[:, 1] = -data_i[:, 1]
-                    data_i[:, 7] = -data_i[:, 7] + 1
+            if self.epoch >= self.rampup:
+                data_feed = []
+                for data_i in data:
+                    data_feed.append(data_i)
+                    aug_choice = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7], 1)
+                    if aug_choice == 1:
+                        data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
+                        data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
+                    elif aug_choice == 2:
+                        data_i[:, 0] = -data_i[:, 0]
+                        data_i[:, 6] = -data_i[:, 6] + 1
+                    elif aug_choice == 3:
+                        data_i[:, 1] = -data_i[:, 1]
+                        data_i[:, 7] = -data_i[:, 7] + 1
+                    elif aug_choice == 4:
+                        data_i[:, 0] = -data_i[:, 0]
+                        data_i[:, 6] = -data_i[:, 6] + 1
+                        data_i[:, 1] = -data_i[:, 1]
+                        data_i[:, 7] = -data_i[:, 7] + 1
+                    elif aug_choice == 5:
+                        data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
+                        data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
+                        data_i[:, 0] = -data_i[:, 0]
+                        data_i[:, 6] = -data_i[:, 6] + 1
+                    elif aug_choice == 6:
+                        data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
+                        data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
+                        data_i[:, 1] = -data_i[:, 1]
+                        data_i[:, 7] = -data_i[:, 7] + 1
+                    elif aug_choice == 7:
+                        data_i[:, 0], data_i[:, 1] = data_i[:, 1].copy(), data_i[:, 0].copy()
+                        data_i[:, 6], data_i[:, 7] = data_i[:, 7].copy(), data_i[:, 6].copy()
+                        data_i[:, 0] = -data_i[:, 0]
+                        data_i[:, 6] = -data_i[:, 6] + 1
+                        data_i[:, 1] = -data_i[:, 1]
+                        data_i[:, 7] = -data_i[:, 7] + 1
 
-                data_feed.append(data_i)
+                    data_feed.append(data_i)
 
-            data_feed = np.stack(data_feed, axis=0)
+                data_feed = np.stack(data_feed, axis=0)
+            else:
+                data_feed = []
+                for data_i in data:
+                    data_feed.append(data_i)
+                    data_feed.append(data_i)
+                data_feed = np.stack(data_feed)
 
             ## Prepare Labels
             seg_onehot = Tool.OnehotEncode(seg, 13)
@@ -324,6 +340,9 @@ class S3DIS_Trainer():
             batch_cnt += 1
 
         Loader.ResetLoader_TrainSet()
+
+        # increase epoch counter by 1
+        self.epoch += 1
 
         # return avg_loss, perdata_miou, pershape_miou
         return avg_loss, avg_acc

@@ -26,8 +26,8 @@ parser.add_argument('--GPU','-gpu',type=int,help='GPU to use [default:0]',defaul
 parser.add_argument('--ExpRslt','-er',type=bool,help='Flag to indicate if export results [default:False]',default=False)    # bool
 parser.add_argument('--LearningRate',type=float,help='Learning Rate',
                     default=1e-3)
-parser.add_argument('--Epoch','-ep',type=int,help='Number of epochs to train [default: 101]',default=101)
-parser.add_argument('--Rampup','-rp',type=int,help='Number of epochs to rampup the weakly supervised losses [default: 51]',default=51)
+parser.add_argument('--Epoch','-ep',type=int,help='Number of epochs to train [default: 101]',default=201)
+parser.add_argument('--Rampup','-rp',type=int,help='Number of epochs to rampup the weakly supervised losses [default: 51]',default=101)
 parser.add_argument('--batchsize','-bs',type=int,help='Training batchsize [default: 1]',default=6)
 parser.add_argument('--m','-m',type=float,help='the ratio/percentage of points selected to be labelled (0.01=1%, '
                                                '0.05=5%, 0.1=10%, 1=100%)[default: 0.01]',default=0.1)
@@ -46,7 +46,7 @@ Loader = IO.ShapeNetIO('./Dataset/ShapeNet',batchsize = args.batchsize)
 Loader.LoadTrainValFiles()
 
 ##### Evaluation Object
-Eval = Evaluation.ShapeNetEval()
+Eval = Evaluation.Eval()
 
 ## Number of categories
 PartNum = Loader.NUM_PART_CATS
@@ -82,7 +82,10 @@ TrainOp = trainer.ShapeNet_Trainer()
 TrainOp.SetLearningRate(LearningRate=args.LearningRate,BatchSize=args.batchsize)
 
 ##### Define Network
-TrainOp.defineNetwork(batch_size=args.batchsize, point_num=2048, style=args.Style, rampup=args.Rampup)
+if args.Style == 'Full':
+    TrainOp.defineNetwork(batch_size=2*args.batchsize, point_num=2048, style=args.Style, rampup=args.Rampup)
+elif args.Style == 'Plain':
+    TrainOp.defineNetwork(batch_size=args.batchsize, point_num=2048, style=args.Style, rampup=args.Rampup)
 
 #### Load Sampled Point Index
 save_path = os.path.expanduser('./Dataset/ShapeNet/Preprocess/')
@@ -100,20 +103,29 @@ for epoch in range(0,args.Epoch):
     else:
         fid = None
 
-    printout('\n\nstart {:d}-th epoch at {}\n'.format(epoch, time.ctime()),write_flag = args.ExpRslt, fid=fid)
+    printout('\n\nstart training {:d}-th epoch at {}\n'.format(epoch, time.ctime()), write_flag=args.ExpRslt, fid=fid)
 
     #### Shuffle Training Data
     Loader.Shuffle_TrainSet()
 
     #### Train One Epoch
-    train_avg_loss, train_avg_acc = TrainOp.TrainOneEpoch(Loader,file_idx_list,data_idx_list,pts_idx_list)
+    if args.Style == 'Full':
+        train_avg_loss, train_avg_acc = TrainOp.TrainOneEpoch_Full(Loader, file_idx_list, data_idx_list, pts_idx_list)
+    elif args.Style == 'Plain':
+        train_avg_loss, train_avg_acc = TrainOp.TrainOneEpoch(Loader,file_idx_list,data_idx_list,pts_idx_list)
 
     printout('\nTrainingSet  Avg Loss {:.4f} Avg Acc {:.2f}%'.format(
         train_avg_loss, 100 * train_avg_acc), write_flag = args.ExpRslt, fid = fid)
 
     #### Evaluate on Validation Set One Epoch
     if epoch % 5 ==0:
-        eval_avg_loss, eval_avg_acc, eval_perdata_miou, eval_pershape_miou = TrainOp.EvalOneEpoch(Loader, Eval)
+
+        printout('\n\nstart validation {:d}-th epoch at {}\n'.format(epoch, time.ctime()), write_flag=args.ExpRslt, fid=fid)
+
+        if args.Style == 'Full':
+            eval_avg_loss, eval_avg_acc, eval_perdata_miou, eval_pershape_miou = TrainOp.EvalOneEpoch_Full(Loader, Eval)
+        elif args.Style == 'Plain':
+            eval_avg_loss, eval_avg_acc, eval_perdata_miou, eval_pershape_miou = TrainOp.EvalOneEpoch(Loader, Eval)
 
         printout('\nEvaluationSet   avg loss {:.2f}   acc {:.2f}%   PerData mIoU {:.3f}%   PerShape mIoU {:.3f}%'.
               format(eval_avg_loss,100*eval_avg_acc, 100*np.mean(eval_perdata_miou), 100*np.mean(eval_pershape_miou)), write_flag = args.ExpRslt, fid = fid)
