@@ -22,17 +22,20 @@ This code has been tested on Pyhon3.6, TensorFlow1.14, CUDA 10.0, cuDNN 7.0 and 
 
 ### Usage
 You should first download the data for ShapeNet and/or S3DIS by running:
+
 	```
 	bash prepareDataset_ShapeNet.sh
 	```
 
 You can then train the full model by running:
-	```python
+
+	```
 	python train_ShapeNet.py
 	```
 
 For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g.2020-06-17_07-45-44, and then run:
-	```python
+
+	```
 	python test_ShapeNet.py -dt year-month-day_hour-min-sec
 	``` 
 
