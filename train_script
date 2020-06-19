@@ -1,2 +1,5 @@
-# Train Full Model
-python train_ShapeNet.py -gpu 0 -m 0.1 -sty Full -er 1 -bs 32
+# Train Full Model for ShapeNet
+python train_ShapeNet.py -gpu 0 -m 0.1 -sty Full -er 0 -bs 32 --Epoch 201
+
+# Train Full Model for S3DIS
+python train_S3DIS.py -gpu 2 -m 0.1 -sty Full -er 0 -bs 14 --Epoch 201

@@ -421,28 +421,38 @@ class S3DIS_Trainer():
                 data_feed = data
                 seg_Onehot_feed = Tool.OnehotEncode(seg, 13)
 
-            ## Normalize Validation Points
-            # data = PointNet_CAM.pc_max_normalize(data)
+            Mask_bin_feed = np.ones(shape=[Loader.batchsize, data.shape[1]], dtype=np.float32)
 
-            ## Dummy Variables
-            Mask_bin = np.ones(shape=[Loader.batchsize, data.shape[1]], dtype=np.float32)
+            ## Replicate for Siamese Network Input
+            data_feed_rep = []
+            seg_Onehot_feed_rep = []
+            Mask_bin_feed_rep = []
+
+            for b_i in range(self.BATCH_SIZE):
+                data_feed_rep.append(data_feed[b_i])
+                data_feed_rep.append(data_feed[b_i])
+                seg_Onehot_feed_rep.append(seg_Onehot_feed[b_i])
+                seg_Onehot_feed_rep.append(seg_Onehot_feed[b_i])
+                Mask_bin_feed_rep.append(Mask_bin_feed[b_i])
+                Mask_bin_feed_rep.append(Mask_bin_feed[b_i])
+
+            data_feed_rep = np.stack(data_feed_rep, axis=0)
+            seg_Onehot_feed_rep = np.stack(seg_Onehot_feed_rep, axis=0)
+            Mask_bin_feed_rep = np.stack(Mask_bin_feed_rep, axis=0)
 
             loss_mb, Z_prob_mb = \
                 self.sess.run([self.loss, self.Z_prob],
-                              feed_dict={self.X_ph: np.concatenate([data_feed, data_feed], axis=0),
-                                         self.Y_ph: np.concatenate([seg_Onehot_feed, seg_Onehot_feed], axis=0),
+                              feed_dict={self.X_ph: data_feed_rep,
+                                         self.Y_ph: seg_Onehot_feed_rep,
                                          self.Is_Training_ph: False,
-                                         self.Mask_ph: np.concatenate([Mask_bin, Mask_bin], axis=0)})
+                                         self.Mask_ph: Mask_bin_feed_rep})
 
-            Z_prob_mb = Z_prob_mb[0:mb_size, ...]
+            Z_prob_mb = Z_prob_mb[0:2 * mb_size:2, ...]
 
             ## Calculate loss and correct rate
             pred_mb = np.argmax(Z_prob_mb, axis=-1)
             correct = np.mean(pred_mb == seg)
             m_iou = np.mean(Tool.IoU(pred_mb, seg, Loader.numParts))
-
-            # avg_loss = (batch_cnt - 1) / batch_cnt * avg_loss + (loss_mb / mb_size) / batch_cnt
-            # avg_correct_rate = (batch_cnt - 1) / batch_cnt * avg_correct_rate + correct / batch_cnt
 
             avg_loss = (avg_loss * samp_cnt + loss_mb) / (samp_cnt + mb_size)
             avg_correct_rate = (avg_correct_rate * samp_cnt + correct * mb_size) / (samp_cnt + mb_size)
@@ -460,11 +470,17 @@ class S3DIS_Trainer():
 
         return avg_loss, avg_correct_rate, avg_iou
 
-        ### Evaluation on validation set function
-
 
     def Test(self, Loader, PRED_PATH):
+        '''
+        Inference on test set
+        Args:
+            Loader: Data loader object
+            PRED_PATH: the path to save inference results
 
+        Returns:
+
+        '''
         true_positive_classes = np.zeros(shape=[13])
         positive_classes = np.zeros(shape=[13])
         gt_classes = np.zeros(shape=[13])
@@ -526,7 +542,6 @@ class S3DIS_Trainer():
                 allPred.append(pred)
                 allGT.append(label_i)
 
-                # print('\rsamp {:d}  acc {:.2f}%  iou: {:.2f}%'.format(samp_cnt,100*acc,100*np.mean(iou)),end='')
                 print('\rroom {:d}  acc {:.2f}%  iou: {:.2f}%'.format(room_cnt, 100 * acc, 100 * np.mean(iou)), end='')
 
             #### Save Predictions for Current Room

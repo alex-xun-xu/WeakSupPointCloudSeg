@@ -318,7 +318,7 @@ class ShapeNet_Trainer():
             for b_i in range(mb_size):
                 shape_label = label[b_i][0]
                 iou_oids = Loader.object2setofoid[Loader.objcats[shape_label]]
-                Z_prob_b = copy.deepcopy(Z_prob_mb[b_i])
+                Z_prob_b = copy.deepcopy(Z_prob_mb[2*b_i])
                 Z_prob_b[:,iou_oids] += 1
                 pred.append(np.argmax(Z_prob_b,axis=-1))
             pred = np.stack(pred)
