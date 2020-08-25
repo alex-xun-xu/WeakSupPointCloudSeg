@@ -33,7 +33,7 @@ parser.add_argument('--m','-m',type=float,help='the ratio/percentage of points s
                                                '0.05=5%, 0.1=10%, 1=100%)[default: 0.01]',default=0.1)
 parser.add_argument('--test_area','-ta',type=int,help='Test area 1 to 6 [default: 6]',default=5)
 parser.add_argument('--Style','-sty',type=str,help='Style for training the network [default: Full]'
-                                                     ' [options: Plain, Full]',default='Full')
+                                                     ' [options: Plain, Full]',default='Plain')
 parser.add_argument('--Network','-net',type=str,help='Network used for training the network [default: DGCNN]'
                                                      ' [options: DGCNN, PointNet++(not supported yet)]',default='DGCNN')
 args = parser.parse_args()
@@ -128,9 +128,9 @@ for epoch in range(0,args.Epoch):
         printout('\n\nstart validation {:d}-th epoch at {}\n'.format(epoch, time.ctime()), write_flag=args.ExpRslt, fid=fid)
 
         if args.Style == 'Full':
-            eval_avg_loss, eval_avg_acc, eval_miou = TrainOp.EvalOneEpoch_Full(Loader, Eval)
+            eval_avg_loss, eval_avg_acc, eval_miou = TrainOp.EvalOneEpoch_Full(Loader)
         elif args.Style == 'Plain':
-            eval_avg_loss, eval_avg_acc, eval_miou = TrainOp.EvalOneEpoch(Loader, Eval)
+            eval_avg_loss, eval_avg_acc, eval_miou = TrainOp.EvalOneEpoch(Loader)
 
         printout('\nEvaluationSet   avg loss {:.2f}   acc {:.2f}%   PerData mIoU {:.3f}%'.
                  format(eval_avg_loss, 100 * eval_avg_acc, 100 * np.mean(eval_miou)), write_flag=args.ExpRslt, fid=fid)

@@ -17,7 +17,7 @@ class S3DIS_Trainer():
 
     def __init__(self, test_area):
 
-        self.bestValCorrect = 0.
+        self.bestValCorrect = 0.    # initial best validation performance
 
         pass
 
@@ -64,7 +64,9 @@ class S3DIS_Trainer():
         :return:
         '''
 
+        ##### Parameters
         self.rampup = rampup
+        self.style = style
 
         ##### Define Network Inputs
         self.X_ph = tf.placeholder(dtype=tf.float32, shape=[batch_size, num_points, 9], name='InputPts')  # B*N*3
@@ -102,7 +104,7 @@ class S3DIS_Trainer():
             sys.exit('Loss {} is not defined!'.format(self.loss))
 
         ## Final Loss
-        self.loss = self.loss_seg + self.loss_siamese + self.loss_inexact + self.loss_smooth
+        # self.loss = self.loss_seg + self.loss_siamese + self.loss_inexact + self.loss_smooth
 
         ##### Define Optimizer
         self.solver = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss,
@@ -183,9 +185,9 @@ class S3DIS_Trainer():
             seg_onehot_feed = Tool.OnehotEncode(seg, 13)
 
             #### Train One Iteration
-            _, loss_mb, loss_siamese_mb, loss_mil_mb, loss_smooth_mb, Z_prob_mb = \
+            _, loss_mb, Z_prob_mb = \
                 self.sess.run(
-                    [self.solver, self.loss, self.loss_siamese, self.loss_inexact, self.loss_smooth, self.Z_prob],
+                    [self.solver, self.loss, self.Z_prob],
                     feed_dict={self.X_ph: data_feed,
                                self.Y_ph: seg_onehot_feed,
                                self.Is_Training_ph: True,
@@ -195,16 +197,16 @@ class S3DIS_Trainer():
             avg_loss = (avg_loss * data_cnt + loss_mb * mb_size) / (data_cnt + mb_size)
             pred = []
             for b_i in range(mb_size):
-                pred.append(np.argmax(Z_prob_mb[2 * b_i], axis=-1))
+                pred.append(np.argmax(Z_prob_mb[b_i], axis=-1))
             pred = np.stack(pred)
             avg_acc = (avg_acc * data_cnt + np.mean(pred == seg) * mb_size) / (data_cnt + mb_size)
 
             data_cnt += mb_size
 
             print(
-                '\rBatch {:d} TrainedSamp {:d}  Loss {:.4f} SiamLoss {:.3f} MILLoss {:.3f} SmoothLoss {:.3f} '
+                '\rBatch {:d} TrainedSamp {:d}  mbLoss {:.4f} '
                 'Avg Acc {:.2f}%'.format(
-                    batch_cnt, data_cnt, loss_mb, loss_siamese_mb, loss_mil_mb, loss_smooth_mb, 100 * avg_acc),
+                    batch_cnt, data_cnt, loss_mb, 100 * avg_acc),
                 end='')
 
             batch_cnt += 1
@@ -332,7 +334,7 @@ class S3DIS_Trainer():
             data_cnt += mb_size
 
             print(
-                '\rBatch {:d} TrainedSamp {:d}  Loss {:.4f} SiamLoss {:.3f} MILLoss {:.3f} SmoothLoss {:.3f} '
+                '\rBatch {:d} TrainedSamp {:d}  mbLoss {:.4f} SiamLoss {:.3f} MILLoss {:.3f} SmoothLoss {:.3f} '
                 'Avg Acc {:.2f}%'.format(
                     batch_cnt, data_cnt, loss_mb, loss_siamese_mb, loss_mil_mb, loss_smooth_mb, 100 * avg_acc),
                 end='')
@@ -346,7 +348,6 @@ class S3DIS_Trainer():
 
         # return avg_loss, perdata_miou, pershape_miou
         return avg_loss, avg_acc
-
 
     def EvalOneEpoch(self, Loader):
         batch_cnt = 1
@@ -398,16 +399,30 @@ class S3DIS_Trainer():
 
         return avg_loss, avg_correct_rate, avg_iou
 
-    def EvalOneEpoch_Full(self, Loader, Eval):
+    def EvalOneEpoch_Full(self, Loader):
+        '''
+        Evaluate the full model for one epoch
+        Args:
+            Loader: Data loader object
+
+        Returns:
+
+        '''
         batch_cnt = 1
         samp_cnt = 0
+        true_positive_classes = np.zeros(shape=[13])
+        positive_classes = np.zeros(shape=[13])
+        gt_classes = np.zeros(shape=[13])
+        total_correct = 0.
+        total_seen = 0.
         avg_loss = 0.
         avg_correct_rate = 0.
-        avg_iou = 0.
+        iou = 0.
+
         while True:
 
             ## get next batch
-            SuccessFlag, data, seg, weak_seg_onehot, mb_size = Loader.NextBatch_TestSet()
+            SuccessFlag, data, seg_mb, weak_seg_onehot, mb_size = Loader.NextBatch_TestSet()
 
             if not SuccessFlag:
                 break
@@ -415,11 +430,11 @@ class S3DIS_Trainer():
             if mb_size < Loader.batchsize:
                 data_feed = np.concatenate([data, np.tile(data[np.newaxis, 0, ...], [Loader.batchsize - mb_size, 1, 1])],
                                            axis=0)
-                seg_feed = np.concatenate([seg, np.tile(seg[np.newaxis, 0], [Loader.batchsize - mb_size, 1])], axis=0)
+                seg_feed = np.concatenate([seg_mb, np.tile(seg_mb[np.newaxis, 0], [Loader.batchsize - mb_size, 1])], axis=0)
                 seg_Onehot_feed = Tool.OnehotEncode(seg_feed, 13)
             else:
                 data_feed = data
-                seg_Onehot_feed = Tool.OnehotEncode(seg, 13)
+                seg_Onehot_feed = Tool.OnehotEncode(seg_mb, 13)
 
             Mask_bin_feed = np.ones(shape=[Loader.batchsize, data.shape[1]], dtype=np.float32)
 
@@ -451,24 +466,36 @@ class S3DIS_Trainer():
 
             ## Calculate loss and correct rate
             pred_mb = np.argmax(Z_prob_mb, axis=-1)
-            correct = np.mean(pred_mb == seg)
-            m_iou = np.mean(Tool.IoU(pred_mb, seg, Loader.numParts))
+            correct = np.sum(pred_mb == seg_mb)
+            acc = np.mean(pred_mb == seg_mb)
+            # m_iou = np.mean(Tool.IoU(pred_mb, seg, Loader.numParts))
+            total_correct += correct
+            total_seen += (mb_size * Loader.NUM_POINT)
+            for pred, label in zip(pred_mb,seg_mb):
+                for pt_i in range(Loader.NUM_POINT):
+                    positive_classes[pred[pt_i]] += 1
+                    true_positive_classes[label[pt_i]] += float(pred[pt_i] == label[pt_i])
+                    gt_classes[label[pt_i]] += 1
+
+            ## Calculate IoU
+            iou = true_positive_classes / (
+                    gt_classes + positive_classes - true_positive_classes + 1e-5)
 
             avg_loss = (avg_loss * samp_cnt + loss_mb) / (samp_cnt + mb_size)
-            avg_correct_rate = (avg_correct_rate * samp_cnt + correct * mb_size) / (samp_cnt + mb_size)
-            avg_iou = (avg_iou * samp_cnt + m_iou * mb_size) / (samp_cnt + mb_size)
+            avg_correct_rate = (avg_correct_rate * samp_cnt + acc * mb_size) / (samp_cnt + mb_size)
+            # avg_iou = (avg_iou * samp_cnt + m_iou * mb_size) / (samp_cnt + mb_size)
 
             samp_cnt += mb_size
 
-            print('\rBatch {:d} EvaluatedSamp {:d}  Avg Loss {:.4f}  Avg Correct Rate {:.3f}%  Avg IoU {:.3f}%'.format(
-                batch_cnt, samp_cnt, avg_loss, 100 * avg_correct_rate, 100 * avg_iou), end='')
+            print('\rBatch {:d} EvaluatedSamp {:d}  Avg Loss {:.4f}  Avg Correct Rate {:.3f}%  mIoU {:.3f}%'.format(
+                batch_cnt, samp_cnt, avg_loss, 100 * avg_correct_rate, 100 * np.mean(iou)), end='')
 
             batch_cnt += 1
 
         Loader.ResetLoader_TestSet()
 
 
-        return avg_loss, avg_correct_rate, avg_iou
+        return avg_loss, avg_correct_rate, np.mean(iou)
 
 
     def Test(self, Loader, PRED_PATH):
