@@ -5,7 +5,7 @@ Created by <a href="http://xu-xun.com" target="_blank">Xun Xu</a> and <a href="h
 ### Introduction
 This work is based on our CVPR2020 paper <a href="https://arxiv.org/abs/2004.04091">Weakly Supervised Semantic Point Cloud Segmentation: Towards 10X Fewer Labels</a>. We studied 3D point cloud segmentation under a weakly supervised scenario. It is assumed that only a fraction (less than 10% in our experiments) of points are provided with ground-truth. We revealed that with such few labeled data, semantic segmentation performance is very close to the fully supervised method (100% data points labeled). We further introduce additional constraints for unlabeled data and achieved comparable results to fully supervised ones.
 
-We release tensorflow code for experiments on ShapeNet[1] and S3DIS[2] datasets.
+We release tensorflow code for experiments on ShapeNet [1] and S3DIS [2] datasets. You are welcome to report any bugs you would identify. Should you have any concerns or experience any issues please raise in Issues so that all people can benefit from the discussions.
 
 ### Citation
 Please cite the following work if you feel it is helpful.
@@ -23,21 +23,18 @@ This code has been tested on Pyhon3.6, TensorFlow1.14, CUDA 10.0, cuDNN 7.0 and 
 ### Usage
 You should first download the data for ShapeNet and/or S3DIS by running:
 
-	```
 	bash prepareDataset_ShapeNet.sh
-	```
+	
 
 You can then train the full model by running:
 
-	```
 	python train_ShapeNet.py
-	```
+	
 
-For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g.2020-06-17_07-45-44, and then run:
+For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g. 2020-06-17_07-45-44, and then run:
 
-	```
 	python test_ShapeNet.py -dt year-month-day_hour-min-sec
-	``` 
+	
 
 
 Reference:
