@@ -7,8 +7,9 @@ import importlib
 import copy
 import scipy.sparse as sparse
 import sys
+import pathlib
 
-sys.path.append(os.path.expanduser('../Util'))
+sys.path.append(os.path.join(pathlib.Path(__file__).parent.absolute(),'../Util'))
 
 import Tool
 import DGCNN_ShapeNet as network

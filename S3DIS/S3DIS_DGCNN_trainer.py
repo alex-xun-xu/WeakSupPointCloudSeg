@@ -4,8 +4,9 @@ import tensorflow as tf
 import os
 import sys
 import scipy.io as scio
+import pathlib
 
-sys.path.append(os.path.expanduser('../Util'))
+sys.path.append(os.path.join(pathlib.Path(__file__).parent.absolute(),'../Util'))
 
 import Tool
 import DGCNN_S3DIS as network
@@ -51,7 +52,6 @@ class S3DIS_Trainer():
             staircase=True)
         bn_decay = tf.minimum(self.BN_DECAY_CLIP, 1 - bn_momentum)
         return bn_decay
-
 
     def defineNetwork(self, batch_size, num_points, style='Full', rampup=101):
         '''
@@ -141,7 +141,6 @@ class S3DIS_Trainer():
         self.LPSolver = PLP.LabelPropagation_Baseline_TF(alpha=1e0, beta=1e0, K=10)
         self.TFComp = {}
         self.TFComp['Lmat'] = Tool.TF_Computation.LaplacianMatSym_XYZRGB_DirectComp()
-
 
     ##### Define Training and Evaluation functions
     def TrainOneEpoch(self, Loader, pts_idx_list=None, batch_size=12):
@@ -497,7 +496,6 @@ class S3DIS_Trainer():
 
         return avg_loss, avg_correct_rate, np.mean(iou)
 
-
     def Test(self, Loader, PRED_PATH):
         '''
         Inference on test set
@@ -584,7 +582,6 @@ class S3DIS_Trainer():
             room_cnt += 1
 
         return true_positive_classes, positive_classes, gt_classes
-
 
     def SaveCheckPoint(self, save_filepath, best_filename, eval_avg_correct_rate):
 
