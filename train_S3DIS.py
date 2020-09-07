@@ -12,8 +12,8 @@ import time
 import scipy.io as scio
 import datetime
 
-sys.path.append(os.path.expanduser('./Util'))
-sys.path.append(os.path.expanduser('./S3DIS'))
+sys.path.append(os.path.abspath('./Util'))
+sys.path.append(os.path.abspath('./S3DIS'))
 
 import DataIO_S3DIS as IO
 from S3DIS import S3DIS_DGCNN_trainer as trainer

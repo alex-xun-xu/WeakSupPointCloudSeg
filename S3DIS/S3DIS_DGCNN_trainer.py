@@ -6,7 +6,7 @@ import sys
 import scipy.io as scio
 import pathlib
 
-sys.path.append(os.path.join(pathlib.Path(__file__).parent.absolute(),'../Util'))
+# sys.path.append(os.path.join(pathlib.Path(__file__).parent.absolute(),'../Util'))
 
 import Tool
 import DGCNN_S3DIS as network
@@ -138,7 +138,7 @@ class S3DIS_Trainer():
 
     def defLabelPropSolver(self,alpha=1e0,beta=1e0,K=10):
         ##### Define Label Propagation Solver
-        self.LPSolver = PLP.LabelPropagation_Baseline_TF(alpha=1e0, beta=1e0, K=10)
+        self.LPSolver = PLP.LabelPropagation_TF(alpha=1e0, beta=1e0, K=10)
         self.TFComp = {}
         self.TFComp['Lmat'] = Tool.TF_Computation.LaplacianMatSym_XYZRGB_DirectComp()
 
