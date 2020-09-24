@@ -23,18 +23,19 @@ This code has been tested on Pyhon3.6, TensorFlow1.14, CUDA 10.0, cuDNN 7.0 and 
 ### Usage
 You should first download the data for ShapeNet and/or S3DIS by running:
 
-	bash prepareDataset_ShapeNet.sh
+	bash prepareDataset_ShapeNet(S3DIS).sh
 	
 
 You can then train the full model by running:
 
-	python train_ShapeNet.py
+	python train_ShapeNet(S3DIS).py
 	
 
-For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g. 2020-06-17_07-45-44, and then run:
+For inference you should first locate the saved training result by the exact date and time in the format year-month-day_hour-min-sec, e.g. 2020-06-17_07-45-44, and then run the following with correct other input arguments:
 
-	python test_ShapeNet.py -dt year-month-day_hour-min-sec
+	python test_ShapeNet(S3DIS).py -dt year-month-day_hour-min-sec
 	
+To test on S3DIS, you should first download Stanford3dDataset_v1.2_Aligned_Version from <a href="http://buildingparser.stanford.edu/dataset.html">S3DIS Dataset</a> and place unzipped files under /Dataset/S3DIS/
 
 
 Reference:

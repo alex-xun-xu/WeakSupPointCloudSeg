@@ -2,6 +2,7 @@ import numpy as np
 import os
 import h5py
 import copy
+import pathlib
 
 class S3DIS_IO():
 
@@ -257,8 +258,8 @@ class S3DIS_Test():
         self.NUM_POINT = NUM_POINT
 
         ## Load All Room Path
-        TE_DATA_PATH = '/home/elexuxu/vision01/pointnet/'
-        room_data_filelist = '/home/elexuxu/vision01/pointnet/sem_seg/meta/{}_data_label.txt'.format(self.te_area)
+        TE_DATA_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(),'../Dataset/S3DIS/')
+        room_data_filelist = os.path.join(TE_DATA_PATH,'/meta/{}_data_label.txt'.format(self.te_area))
         self.ROOM_PATH_LIST = [os.path.join(TE_DATA_PATH, line.rstrip()) for line in open(room_data_filelist)]
 
         ## Reset Test Room Pointer
